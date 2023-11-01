@@ -381,19 +381,19 @@ library(randomForest)
 #write(my_df3)
 #write.csv(my_df3, file = "my_df3.csv", row.names = FALSE)
 set.seed(2023)
-formula=REPONSE_30~.
-readingSkills.cf <- randomForest(REPONSE_30~.,data = my_df3,ntree=100,importance=TRUE, proximity=TRUE)
-varImpPlot(readingSkills.cf)
-#tiene gini y acuracia
+# formula=REPONSE_30~.
+# readingSkills.cf <- randomForest(REPONSE_30~.,data = my_df3,ntree=100,importance=TRUE, proximity=TRUE)
+# varImpPlot(readingSkills.cf)
+# #tiene gini y acuracia
 
-model001 <- randomForest(REPONSE_30~.,data = my_df3,proximity=TRUE)
-model001
-varImpPlot(model001)
+# model001 <- randomForest(REPONSE_30~.,data = my_df3,proximity=TRUE)
+# model001
+# varImpPlot(model001)
 
 
-distance.matrix <- dist(1-model001$proximity)
-mds.stuff <- cmdscale(distance.matrix,eig=TRUE,x.ret=TRUE)
-mds.var.per <- round(mds.stuff$eig/sum(mds.stuff$eig)*100,1)
+# distance.matrix <- dist(1-model001$proximity)
+# mds.stuff <- cmdscale(distance.matrix,eig=TRUE,x.ret=TRUE)
+# mds.var.per <- round(mds.stuff$eig/sum(mds.stuff$eig)*100,1)
 
 ##To do next meet: terminar estos tres código y quitar algunas variables ultimas
 
@@ -418,30 +418,197 @@ str(my_df4)
 4
 
 
-readingSkills.cf4 <- randomForest(REPONSE_30~.,data = my_df4,ntree=100,importance=TRUE)
-varImpPlot(readingSkills.cf4)
+# readingSkills.cf4 <- randomForest(REPONSE_30~.,data = my_df4,ntree=100,importance=TRUE)
+# varImpPlot(readingSkills.cf4)
 
 
 ###############################################################################
-# Split the data into training, validation, and test sets
-set.seed(2023)  # Set a seed for reproducibility
-train_ratio <- 0.6  # 60% for training
-val_ratio <- 0.2  # 20% for validation
-test_ratio <- 0.2  # 20% for testing
+# # Split the data into training, validation, and test sets
+# set.seed(2023)  # Set a seed for reproducibility
+# train_ratio <- 0.6  # 60% for training
+# val_ratio <- 0.2  # 20% for validation
+# test_ratio <- 0.2  # 20% for testing
 
 # Create indices for splitting the data
-data = my_df4
+
 
 #install.packages("caret")
 library("caret")
-#library(ggplot2)
-indices <- createDataPartition(data$REPONSE_30, p = train_ratio, times = 1)
-train_data <- data[indices[[1]], ]
-remaining_data <- data[-indices[[1]], ]
+# #library(ggplot2)
+# indices <- createDataPartition(data$REPONSE_30, p = train_ratio, times = 1)
+# train_data <- data[indices[[1]], ]
+# remaining_data <- data[-indices[[1]], ]
 
-indices <- createDataPartition(remaining_data$REPONSE_30, p = val_ratio/(1-train_ratio), times = 1)
-validation_data <- remaining_data[indices[[1]], ]
-test_data <- remaining_data[-indices[[1]], ]
+# indices <- createDataPartition(remaining_data$REPONSE_30, p = val_ratio/(1-train_ratio), times = 1)
+# validation_data <- remaining_data[indices[[1]], ]
+# test_data <- remaining_data[-indices[[1]], ]
+data = my_df4
+#--- presentacion ---#
+#contraejemplo del modelo randomforest (acuracy=1) estaba incorrecto pues 
+#presencia de exceso de ceros en algumas variables cuantitativas 
+#Overfitting: An accuracy of 100% could be a sign of overfitting. Overfitting occurs when a model has learned the training data so well that it memorizes the training data points rather than generalizing from them. In such cases, the model may perform poorly on new, unseen data.
+
+# Data Issues: Perfect accuracy might result from data issues, such as data leakage, data errors, or a too-small dataset. Ensure that your data is clean and correctly labeled.
+
+# data = my_df4[,1:9]
+# my_df4<-subset(my_df4, select = -c(deduccion,CUOTA_MENSUAL))
+
+# my_df5<-subset(my_df4, select = -c(CUOTA_MENSUAL))
+
+my_df5<-subset(my_df4, select = -c(deduccion,CUOTA_MENSUAL))
+
+data=my_df5
+################
+train_indices <- sample(1:nrow(data), nrow(data) * 0.7)
+train_data <- data[train_indices, ]
+test_data <- data[-train_indices, ]
+################
+rf_model<-randomForest(REPONSE_30~.,data = train_data,ntree=100,importance=TRUE, proximity=TRUE)
+varImpPlot(rf_model)
+
+output<-confusionMatrix(predictions, test_data$REPONSE_30)
+
+output$overall["Accuracy"]
+#########################
+# Assuming your dataset is named 'data'
+# Select only the numerical columns from the dataset
+numerical_cols <- data[, sapply(data, is.numeric)]
+
+# Create histograms for each numerical column
+par(mfrow=c(5, 4))  # Adjust the layout for the number of columns you have
+for (col in names(numerical_cols)) {
+  hist(numerical_cols[, col], main=col, xlab=col)
+}
+
+filesSources<-list.files(path="/home/juan/Documentos/Estatcamp/estatcamp/EstatBinomialModel/EstatBinomialModel8/R", pattern=".R",all.files=TRUE,full.names=TRUE)
+
+sapply(filesSources, source)
+#######################
+varY <-"REPONSE_30"
+varResp <- "REPONSE_30"
+	# form <- paste(paste(varX, collapse = "+"))
+    # form <- paste(varResp, "~", paste(varX, collapse = "+"))
+varX <- names(data)[names(data)!="REPONSE_30"]
+form <- paste(paste(varX, collapse = "+"))
+#####################
+factor_columns <- sapply(data[,varX], is.factor)
+# List the column names that are numeric
+varCat <- names(factor_columns[factor_columns])
+#####################
+numeric_columns <- sapply(data[,varX], is.numeric)
+# List the column names that are numeric
+VarNum <- names(numeric_columns[numeric_columns])
+################
+varsTRV <- varCat
+
+################
+	novosDados <- NULL
+	showPrev <- FALSE
+
+	fLig <- "logit"
+	pDadosCompletos <- TRUE
+	varEnsaios <- NULL
+	inter <- TRUE
+	fOdds <- TRUE
+	nDivs <- 15
+	Residuo <- FALSE
+
+	intercepto <- ""
+
+	confLevel <- 0.95
+	varFixas <- ""
+
+	fPerformance <- fProbAd <- fTRV <- fHL <- fDev <- fPear <- fROC <- pCont <- TRUE
+	plotRegFact <- plotCont <- plotContArea <- plotSuperf <- plotSuperf3D <- FALSE
+	plotDisp <- TRUE
+	residEscolha <- rep(TRUE,7)
+
+	showPred <- showResiduos <- TRUE
+	peso <- 1
+	
+	g <- 10
+	corte <- 10
+	input <- list(
+		dados = data,
+		form = form,
+		varResp = varResp,
+		varEnsaios = varEnsaios,
+		fLig = fLig,
+		confLevel = confLevel,
+		intercepto = intercepto,
+		fOdds = fOdds,
+		fProbAd = fProbAd,
+		showPrev = showPrev,
+		novosDados = novosDados,
+		fROC = fROC,
+		fPerformance = fPerformance,
+		corte = corte,
+		fDev = fDev,
+		fPear = fPear,
+		fHL = fHL,
+		g = g,
+		fTRV = fTRV,
+		varsTRV = varsTRV,
+		pDadosCompletos = pDadosCompletos,
+		Residuo = Residuo,
+		varFixas = varFixas,
+		varCat = varCat,
+		varY = varY,
+		varX = varX,
+		plotRegFact = plotRegFact,
+		upLim = NULL,
+		lowLim = NULL,
+		plotCont = plotCont,
+		plotContArea = plotContArea,
+		plotSuperf = plotSuperf,
+		plotSuperf3D = plotSuperf3D,
+		plotDisp = plotDisp,
+		nDivs = nDivs)    
+outgg=binomialModel(input)
+
+	form2 = createFormula(pDadosCompletos, intercepto, varResp, form, varEnsaios)
+
+    # Transforma a vari\u00E1vel categ\u00F3rica
+	novo = novosDados
+    if (!is.null(varCat)) {
+        d<-dados
+        dados=setCategoricalVars(d, varResp, varCat)
+      if (showPrev) {
+        d<-novosDados
+        novosDados=setCategoricalVars(d, varResp, varCat)
+      }
+    }
+
+# binomialModel <- function(input)
+	# Calculo Modelo
+	result = glmLog(dados=data, form2, fLig, confLevel=confLevel)
+	modelo = result$modelo
+
+barplot(table(data$deduccion == 0))
+
+library(rpart)
+library(rpart.plot)
+
+outtree=rpart(REPONSE_30 ~ ., data = data)
+prp(outtree)
+par(mfrow=c(1, 1))
+############################
+# Fit a logistic regression model
+model <- glm(REPONSE_30 ~ ., data = data, family = binomial)
+
+# Summarize the model
+summary(model)
+###################
+model <- glm(form11, data = dat, family = binomial)
+#####################
+######################
+# data1=data.frame(ab=sample(c('a','b'),nrow(dat), replace = T, prob = NULL),sex=dat$Sex,survived=dat$Survived)
+# glm(survived~ab+sex, data = data1, family = binomial)
+# ######################
+# data1=data.frame(ab=sample(c('a','b','c'),nrow(dat), replace = T, prob = NULL),sex=dat$Sex,survived=dat$Survived)
+# glm(survived~ab+sex, data = data1, family = binomial)
+# #delineamiento cuando tienes covariables categoricas 
+
 ##########################
 # Split the data into a training set and a test set
 set.seed(123)
@@ -451,6 +618,9 @@ test_data <- data[-train_indices, ]
 
 # Create a random forest model
 rf_model <- randomForest(REPONSE_30 ~ ., data = train_data, ntree = 100)
+# rf_model<-randomForest(REPONSE_30~.,data = train_data,ntree=100,importance=TRUE, proximity=TRUE)
+
+varImpPlot(rf_model)
 
 # Make predictions on the test set
 predictions <- predict(rf_model, newdata = test_data)
@@ -458,8 +628,9 @@ predictions <- predict(rf_model, newdata = test_data)
 # Create a confusion matrix
 confusion_matrix <- table(predictions, test_data$REPONSE_30)
 print(confusion_matrix)
-confusionMatrix(predictions, test_data$Outcome)
+output<-confusionMatrix(predictions, test_data$REPONSE_30)
 
+output$overall["Accuracy"]
 # write.csv(my_df4, file = "my_df4.csv", row.names = FALSE)
 
 ###################
